@@ -58,10 +58,10 @@ func main() {
     }
 
     // Call for syncRulesWithScripts
-    err = syncRulesWithScripts()
-    if err != nil {
-        fmt.Printf("Error synchronizing rules with scripts: %v\n", err)
-    }
+    //err = syncRulesWithScripts()
+    //if err != nil {
+    //    fmt.Printf("Error synchronizing rules with scripts: %v\n", err)
+    //}
 
     args := os.Args[1:]
 
