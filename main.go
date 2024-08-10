@@ -63,7 +63,7 @@ func main() {
         fmt.Printf("Warning: Unable to synchronize rules with scripts: %v\n", err)
         fmt.Println("This may be normal if this is the first run or if ~/.local/bin doesn't exist.")
         fmt.Println("The program will continue, but some functionality may be limited.")
-}
+    }
 
     args := os.Args[1:]
 
@@ -1001,7 +1001,7 @@ func syncRulesWithScripts() error {
     }
 
     // Create or update scripts for existing rules
-    for _, rule := includeAllRules {
+    for _, rule := range rules {
         command, err := getCommand(rule)
         if err != nil {
             fmt.Printf("Error getting command for rule %s: %v\n", rule, err)
