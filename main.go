@@ -58,10 +58,12 @@ func main() {
     }
 
     // Call for syncRulesWithScripts
-    //err = syncRulesWithScripts()
-    //if err != nil {
-    //    fmt.Printf("Error synchronizing rules with scripts: %v\n", err)
-    //}
+    err = syncRulesWithScripts()
+    if err != nil {
+        fmt.Printf("Warning: Unable to synchronize rules with scripts: %v\n", err)
+        fmt.Println("This may be normal if this is the first run or if ~/.local/bin doesn't exist.")
+        fmt.Println("The program will continue, but some functionality may be limited.")
+}
 
     args := os.Args[1:]
 
@@ -967,6 +969,12 @@ func syncRulesWithScripts() error {
 
     rulesDir := filepath.Join(os.Getenv("HOME"), ".local/bin")
 
+    // Create the directory if it doesn't exist
+    err := os.MkdirAll(rulesDir, 0755)
+    if err != nil {
+        return fmt.Errorf("failed to create rules directory: %v", err)
+    }
+
     // Remove scripts that don't have corresponding rules
     files, err := os.ReadDir(rulesDir)
     if err != nil {
@@ -993,7 +1001,7 @@ func syncRulesWithScripts() error {
     }
 
     // Create or update scripts for existing rules
-    for _, rule := range rules {
+    for _, rule := includeAllRules {
         command, err := getCommand(rule)
         if err != nil {
             fmt.Printf("Error getting command for rule %s: %v\n", rule, err)
@@ -1011,4 +1019,3 @@ func syncRulesWithScripts() error {
 
     return nil
 }
-
