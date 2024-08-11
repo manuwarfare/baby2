@@ -426,10 +426,13 @@ func updateRule(name, command string) {
 
     // Create or update the script file
     scriptPath := filepath.Join(binDir, name)
-    scriptContent := fmt.Sprintf("#!/bin/bash\n%s\n", command)
-
-    // Print the script content for debugging
-    fmt.Printf("Script Content:\n%s\n", scriptContent)
+    scriptContent := fmt.Sprintf(`#!/bin/bash
+start=$(date +%%s.%%N)
+%s
+end=$(date +%%s.%%N)
+duration=$(echo "$end - $start" | bc)
+echo "[$(date +'%%Y-%%m-%%d %%H:%%M:%%S')] UPDATE_RULE %s at $(hostname -I | awk '{print $1}') | Rule: %s, Command: "%s", Result: Success, Duration: ${duration}s" >> %s
+`, command, os.Getenv("USER"), name, command, filepath.Join(os.Getenv("HOME"), logDir, logFileName))
 
     err = os.WriteFile(scriptPath, []byte(scriptContent), 0755)
     if err != nil {
@@ -445,7 +448,6 @@ func updateRule(name, command string) {
 
     fmt.Printf("Rule '%s' successfully updated.\n", name)
 }
-
 
 func showRule(name string) {
     file, err := os.Open(configFile)
@@ -1002,7 +1004,6 @@ func writeLinesWithLock(filename string, lines []string) error {
 
 func syncRulesWithScripts() error {
     rules := getAllRules()
-
     rulesDir := filepath.Join(os.Getenv("HOME"), ".local/bin")
 
     // Create the directory if it doesn't exist
@@ -1045,7 +1046,13 @@ func syncRulesWithScripts() error {
         }
 
         scriptPath := filepath.Join(rulesDir, rule)
-        scriptContent := fmt.Sprintf("#!/bin/bash\n%s\n", command)
+        scriptContent := fmt.Sprintf(`#!/bin/bash
+start=$(date +%%s.%%N)
+%s
+end=$(date +%%s.%%N)
+duration=$(echo "$end - $start" | bc)
+echo "[$(date +'%%Y-%%m-%%d %%H:%%M:%%S')] EXECUTE_RULE %s at $(hostname -I | awk '{print $1}') | Rule: %s, Command: "%s", Result: Success, Duration: ${duration}s" >> %s
+`, command, os.Getenv("USER"), rule, command, filepath.Join(os.Getenv("HOME"), logDir, logFileName))
 
         err = os.WriteFile(scriptPath, []byte(scriptContent), 0755)
         if err != nil {
