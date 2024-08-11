@@ -501,7 +501,7 @@ func runCommands(commands []string, bottleValues map[string]string) {
         }
 
         logDetails := fmt.Sprintf("Command: \"%s\", Result: %s in %v", command, result, duration)
-        err = logEvent("EXECUTE_COMMAND", logDetails)
+        err = logEvent("EXECUTE_RULE", logDetails)
         if err != nil {
             fmt.Printf("Warning: Failed to log event: %v\n", err)
         }
@@ -531,6 +531,9 @@ func getCommand(name string) (string, error) {
 }
 
 func importRulesFromFile(filePath string) {
+    // Start timing
+    start := time.Now()
+
     // Open the file
     file, err := os.Open(filePath)
     if err != nil {
@@ -594,10 +597,22 @@ func importRulesFromFile(filePath string) {
         }
 
         // Create the script immediately
-        createScriptForRule(name, command)
+        scriptPath := filepath.Join(filepath.Join(os.Getenv("HOME"), ".local/bin"), name)
+        scriptContent := fmt.Sprintf(`#!/bin/bash
+start=$(date +%%s.%%N)
+%s
+end=$(date +%%s.%%N)
+duration=$(echo "$end - $start" | bc)
+echo "[$(date +'%%Y-%%m-%%d %%H:%%M:%%S')] EXECUTE_RULE %s at $(hostname -I | awk '{print $1}') | Rule: %s, Command: "%s", Result: Success, Duration: ${duration}s" >> %s
+`, command, os.Getenv("USER"), name, command, filepath.Join(os.Getenv("HOME"), logDir, logFileName))
+
+        err := os.WriteFile(scriptPath, []byte(scriptContent), 0755)
+        if err != nil {
+            fmt.Printf("Error creating script for rule %s: %v\n", name, err)
+        }
 
         // Log the import event
-        err := logEvent("IMPORT_RULE", fmt.Sprintf("From File: %s, Name: %s, Command: %s", filePath, name, command))
+        err = logEvent("IMPORT_RULE", fmt.Sprintf("From File: %s, Name: %s, Command: %s", filePath, name, command))
         if err != nil {
             fmt.Printf("Warning: Failed to log event: %v\n", err)
         }
@@ -610,7 +625,10 @@ func importRulesFromFile(filePath string) {
         return
     }
 
-    fmt.Println("Rules imported successfully.")
+    // End timing
+    end := time.Now()
+    duration := end.Sub(start).Seconds()
+    fmt.Printf("Rules imported successfully in %.2f seconds.\n", duration)
 }
 
 func createScriptForRule(name, command string) {
@@ -823,7 +841,7 @@ func executeCommand(command string) error {
     }
 
     logDetails := fmt.Sprintf("Command: \"%s\", Result: %s, Duration: %v", command, result, duration)
-    logErr := logEvent("EXECUTE_COMMAND", logDetails)
+    logErr := logEvent("EXECUTE_RULE", logDetails)
     if logErr != nil {
         fmt.Printf("Warning: Failed to log event: %v\n", logErr)
     }
