@@ -257,7 +257,7 @@ func createRule(name, command string) {
         return
     }
 
-    // Crear el directorio ~/.local/bin si no existe
+    // Create the directory ~/.local/bin if it does not exist
     binDir := filepath.Join(os.Getenv("HOME"), ".local/bin")
     err = os.MkdirAll(binDir, 0755)
     if err != nil {
@@ -265,9 +265,15 @@ func createRule(name, command string) {
         return
     }
 
-    // Crear el script en ~/.local/bin usando os.WriteFile
+    // Create the script in ~/.local/bin using os.WriteFile
     scriptPath := filepath.Join(os.Getenv("HOME"), ".local/bin", name)
-    scriptContent := fmt.Sprintf("#!/bin/bash\n%s\n", command)
+    scriptContent := fmt.Sprintf(`#!/bin/bash
+start=$(date +%%s.%%N)
+%s
+end=$(date +%%s.%%N)
+duration=$(echo "$end - $start" | bc)
+echo "[$(date +'%%Y-%%m-%%d %%H:%%M:%%S')] EXECUTE_RULE %s at $(hostname -I | awk '{print $1}') | Rule: %s, Command: "%s", Result: Success, Duration: ${duration}s" >> %s
+`, command, os.Getenv("USER"), name, command, filepath.Join(os.Getenv("HOME"), logDir, logFileName))
 
     err = os.WriteFile(scriptPath, []byte(scriptContent), 0755)
     if err != nil {
@@ -275,7 +281,7 @@ func createRule(name, command string) {
         return
     }
 
-    // Registrar el evento en baby.log
+    // Log the event in baby.log
     err = logEvent("CREATE_RULE", fmt.Sprintf("Name: %s, Command: %s", name, command))
     if err != nil {
         fmt.Printf("Warning: Failed to log event: %v\n", err)
