@@ -523,6 +523,7 @@ func getCommand(name string) (string, error) {
 }
 
 func importRulesFromFile(filePath string) {
+    // Open the file
     file, err := os.Open(filePath)
     if err != nil {
         fmt.Println("Error opening file:", err)
@@ -530,6 +531,7 @@ func importRulesFromFile(filePath string) {
     }
     defer file.Close()
 
+    // Read the file
     scanner := bufio.NewScanner(file)
     var rulesText string
     for scanner.Scan() {
@@ -540,16 +542,17 @@ func importRulesFromFile(filePath string) {
         return
     }
 
+    // Extract rules from the text
     rules := extractRules(rulesText)
 
-    // Read existing rules
+    // Read existing rules from the configuration file
     existingRules, err := readLines(configFile)
     if err != nil {
         fmt.Println("Error reading existing rules:", err)
         return
     }
 
-    // Process rules
+    // Process each rule
     for _, rule := range rules {
         parts := strings.Split(rule, " = ")
         if len(parts) != 2 {
@@ -582,6 +585,9 @@ func importRulesFromFile(filePath string) {
             fmt.Printf("Rule '%s' added.\n", name)
         }
 
+        // Create the script immediately
+        createScriptForRule(name, command)
+
         // Log the import event
         err := logEvent("IMPORT_RULE", fmt.Sprintf("From File: %s, Name: %s, Command: %s", filePath, name, command))
         if err != nil {
@@ -589,8 +595,7 @@ func importRulesFromFile(filePath string) {
         }
     }
 
-    // Write all rules back to the config file
-    //err = writeLines(configFile, existingRules)
+    // Write all rules back to the configuration file
     err = writeLinesWithLock(configFile, existingRules)
     if err != nil {
         fmt.Println("Error writing rules to config file:", err)
@@ -598,6 +603,16 @@ func importRulesFromFile(filePath string) {
     }
 
     fmt.Println("Rules imported successfully.")
+}
+
+func createScriptForRule(name, command string) {
+    scriptPath := filepath.Join(os.Getenv("HOME"), ".local/bin", name)
+    scriptContent := fmt.Sprintf("#!/bin/bash\n%s\n", command)
+
+    err := os.WriteFile(scriptPath, []byte(scriptContent), 0755)
+    if err != nil {
+        fmt.Printf("Error creating script for rule %s: %v\n", name, err)
+    }
 }
 
 func extractRules(text string) []string {
@@ -784,12 +799,27 @@ func writeToFile(filePath string, content []string) error {
 }
 
 func executeCommand(command string) error {
+    start := time.Now()
+
     cmd := exec.Command("bash", "-c", command)
     cmd.Stdout = os.Stdout
     cmd.Stderr = os.Stderr
     cmd.Stdin = os.Stdin
 
     err := cmd.Run()
+
+    duration := time.Since(start)
+    result := "Success"
+    if err != nil {
+        result = fmt.Sprintf("Error: %v", err)
+    }
+
+    logDetails := fmt.Sprintf("Command: \"%s\", Result: %s, Duration: %v", command, result, duration)
+    logErr := logEvent("EXECUTE_COMMAND", logDetails)
+    if logErr != nil {
+        fmt.Printf("Warning: Failed to log event: %v\n", logErr)
+    }
+
     if err != nil {
         if exitError, ok := err.(*exec.ExitError); ok {
             return fmt.Errorf("command failed with exit code %d: %v", exitError.ExitCode(), err)
